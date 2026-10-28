@@ -1,0 +1,33 @@
+[package]
+name = "opencode-core"
+version = "2.0.0"
+edition = "2021"
+description = "OpenCode agent engine (vendored from opencode-rs)"
+license = "MIT"
+
+[dependencies]
+anyhow = "1"
+async-trait = "0.1"
+base64 = "0.22"
+chrono = { version = "0.4", features = ["serde"] }
+dirs = "5"
+flate2 = "1"
+futures = "0.3"
+globset = "0.4"
+htmd = "0.1"
+html2text = "0.12"
+ignore = "0.4"
+mime_guess = "2"
+rand = "0.8"
+regex = "1"
+rusqlite = { version = "0.32", features = ["bundled"] }
+sha1_smol = "1"
+http = "1"
+url = "2"
+wreq = { version = "0.16.1", default-features = false, features = ["tokio-rt", "webpki-roots", "json", "stream", "gzip", "deflate", "brotli", "zstd"] }
+wreq-proto = "0.2.6"
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["preserve_order"] }
+similar = { version = "2", features = ["inline"] }
+tokio = { version = "1", features = ["full"] }
+tokio-util = "0.7"
