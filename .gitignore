@@ -1,0 +1,15 @@
+# Build output
+/target
+
+# Local copy of the original React Native app, kept for reference only
+/opencode-mobile
+
+# Host build tools for BoringSSL (libclang, NASM); see .cargo/config.toml
+/.tools
+
+# Local indexes and editor state
+/.codegraph
+/.idea
+/.vscode
+.DS_Store
+Thumbs.db

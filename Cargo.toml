@@ -1,0 +1,90 @@
+[workspace]
+# The root package is a member implicitly; listing "." makes cargo-apk reject the manifest.
+members = ["crates/opencode-core"]
+resolver = "2"
+
+[package]
+name = "opencode-mobile"
+version = "0.1.0"
+edition = "2024"
+description = "OpenCode Mobile for Android: a Rust + Slint client with an embedded agent engine"
+license = "MIT"
+repository = "https://github.com/CottonDestroyer/opencode-mobile"
+
+# Loaded by the Android activity, which enters through `android_main` (src/lib.rs). The crate also
+# builds for the host so that `cargo test --lib` runs there.
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+opencode-core = { path = "crates/opencode-core" }
+slint = { version = "1.18.1", features = ["backend-android-activity-06"] }
+anyhow = "1"
+tokio = { version = "1", features = ["full"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+chrono = "0.4"
+base64 = "0.22"
+pulldown-cmark = { version = "0.12", default-features = false }
+similar = "2"
+image = { version = "0.25", default-features = false, features = ["png", "jpeg", "gif", "webp", "bmp"] }
+
+[target.'cfg(target_os = "android")'.dependencies]
+jni = "0.22"  # same major version as Slint's Android backend
+
+[build-dependencies]
+slint-build = "1.18.1"
+android-build = "0.1"  # compiles java/ into the dex embedded by src/platform.rs
+
+# APK packaging with cargo-apk, via scripts/build-android.ps1 -Cargo "apk build --lib".
+[package.metadata.android]
+package = "dev.opencodemobile.app"
+apk_name = "opencode-mobile"
+resources = "android/res"
+
+[package.metadata.android.sdk]
+min_sdk_version = 26
+# cargo-apk compiles against platforms/android-<target_sdk_version>.
+target_sdk_version = 37
+
+[[package.metadata.android.uses_permission]]
+name = "android.permission.INTERNET"
+
+# App lock (BiometricPrompt: biometrics or the device credential)
+[[package.metadata.android.uses_permission]]
+name = "android.permission.USE_BIOMETRIC"
+
+# Notifications (runtime permission since Android 13)
+[[package.metadata.android.uses_permission]]
+name = "android.permission.POST_NOTIFICATIONS"
+
+# Speech input (runtime permission)
+[[package.metadata.android.uses_permission]]
+name = "android.permission.RECORD_AUDIO"
+
+# Project folders outside app storage. The agent's tools need real paths, which the document picker
+# alone doesn't provide: "All files access" on Android 11+, the storage permission before that.
+[[package.metadata.android.uses_permission]]
+name = "android.permission.MANAGE_EXTERNAL_STORAGE"
+
+[[package.metadata.android.uses_permission]]
+name = "android.permission.WRITE_EXTERNAL_STORAGE"
+max_sdk_version = 29
+
+# Android 11+ hides the speech recognition service from apps that don't declare it here.
+[[package.metadata.android.queries.intent]]
+actions = ["android.speech.RecognitionService"]
+
+[package.metadata.android.application]
+label = "OpenCode Mobile"
+icon = "@mipmap/ic_launcher"
+
+# Handle these in place rather than recreating the activity, which would restart android_main and
+# drop a pending picker result. Slint already reacts to size, night mode and font scale changes.
+[package.metadata.android.application.activity]
+config_changes = "orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|screenLayout|uiMode|density|fontScale|locale|layoutDirection|navigation"
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+strip = true
