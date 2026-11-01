@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The opencode logo as a vector. On the logo's grid it is a 4x5-unit frame around a 2x3-unit opening
+  whose lower two units are filled. One unit is 10dp here, centred on the 108dp adaptive-icon canvas so
+  the mark stays within the 66dp safe zone.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#F1ECEC"
+        android:fillType="evenOdd"
+        android:pathData="M34,29h40v50h-40z M44,39v30h20v-30z" />
+    <path
+        android:fillColor="#4B4646"
+        android:pathData="M44,49h20v20h-20z" />
+</vector>

@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Background of opencode's dark logo artwork. -->
+    <color name="ic_launcher_background">#131010</color>
+</resources>
