@@ -1,0 +1,128 @@
+// Colors and metrics mirroring opencode-mobile's React Native styles, in light and dark variants.
+import { Palette } from "std-widgets.slint";
+
+export global Theme {
+    // 0 = follow the system, 1 = light, 2 = dark.
+    in-out property <int> preference: 0;
+    out property <bool> dark: preference == 2 ? true : preference == 1 ? false : Palette.color-scheme == ColorScheme.dark;
+
+    out property <color> bg: dark ? #0a0a0a : #ffffff;
+    out property <color> surface: dark ? #1a1a1a : #f5f5f5;
+    out property <color> surface-2: dark ? #2a2a2a : #e5e5e5;
+    out property <color> sheet: dark ? #1a1a1a : #ffffff;
+    out property <color> border: dark ? #1a1a1a : #e5e5e5;
+    out property <color> hairline: dark ? #2a2a2a : #e5e5e5;
+    out property <color> text: dark ? #ffffff : #0a0a0a;
+    out property <color> text-2: dark ? #888888 : #666666;
+    out property <color> muted: dark ? #666666 : #999999;
+    out property <color> faint: dark ? #444444 : #cccccc;
+
+    out property <color> accent: #8b5cf6;
+    out property <color> accent-strong: dark ? #a78bfa : #6d28d9;
+    out property <color> accent-soft: dark ? #1a1a2e : #f5f3ff;
+    out property <color> accent-row: dark ? #1f1a2e : #f5f3ff;
+
+    out property <color> primary: dark ? #ffffff : #0a0a0a;
+    out property <color> on-primary: dark ? #0a0a0a : #ffffff;
+
+    out property <color> green: #22c55e;
+    out property <color> red: #ef4444;
+    out property <color> amber: #f59e0b;
+
+    out property <color> bubble-user: dark ? #1a1a1a : #f5f5f5;
+    out property <color> bubble-assistant: dark ? #1a1a2e : #f0f0ff;
+    out property <color> tag: dark ? #2a2a2a : #e5e5e5;
+
+    out property <color> card: dark ? #2a2a2a : #ffffff;
+    out property <color> card-border: dark ? #3a3a3a : #f0f0f0;
+    out property <color> code-bg: dark ? #1a1a1a : #f8f8f8;
+    out property <color> code-text: dark ? #e5e5e5 : #0a0a0a;
+
+    out property <color> warn-bg: dark ? #1a1a0a : #fffbeb;
+    out property <color> warn-border: dark ? #333300 : #fef3c7;
+    out property <color> warn-title: dark ? #f59e0b : #92400e;
+    out property <color> warn-text: dark ? #d4a574 : #78350f;
+
+    out property <color> err-bg: dark ? #3b1212 : #fef2f2;
+    out property <color> err-border: dark ? #7f1d1d : #fecaca;
+    out property <color> err-text: dark ? #fca5a5 : #b91c1c;
+
+    out property <color> add-bg: dark ? #052e16 : #dcfce7;
+    out property <color> add-text: #16a34a;
+    out property <color> del-bg: dark ? #2a0a0a : #fee2e2;
+    out property <color> del-text: #dc2626;
+
+    out property <string> mono: "Consolas";
+}
+
+export global Icons {
+    out property <image> chats: @image-url("icons/chatbubbles-outline.svg");
+    out property <image> chat: @image-url("icons/chatbubble-outline.svg");
+    out property <image> key: @image-url("icons/key-outline.svg");
+    out property <image> settings: @image-url("icons/settings-outline.svg");
+    out property <image> chevron-forward: @image-url("icons/chevron-forward.svg");
+    out property <image> chevron-down: @image-url("icons/chevron-down.svg");
+    out property <image> chevron-up: @image-url("icons/chevron-up.svg");
+    out property <image> back: @image-url("icons/chevron-back.svg");
+    out property <image> folder: @image-url("icons/folder.svg");
+    out property <image> folder-outline: @image-url("icons/folder-outline.svg");
+    out property <image> folder-open: @image-url("icons/folder-open-outline.svg");
+    out property <image> swap: @image-url("icons/swap-horizontal-outline.svg");
+    out property <image> add: @image-url("icons/add.svg");
+    out property <image> add-circle: @image-url("icons/add-circle-outline.svg");
+    out property <image> clipboard: @image-url("icons/clipboard-outline.svg");
+    out property <image> mic: @image-url("icons/mic.svg");
+    out property <image> send: @image-url("icons/send.svg");
+    out property <image> stop: @image-url("icons/stop.svg");
+    out property <image> stats: @image-url("icons/stats-chart-outline.svg");
+    out property <image> stats-filled: @image-url("icons/stats-chart.svg");
+    out property <image> close: @image-url("icons/close.svg");
+    out property <image> person: @image-url("icons/person.svg");
+    out property <image> sparkles: @image-url("icons/sparkles.svg");
+    out property <image> bulb: @image-url("icons/bulb-outline.svg");
+    out property <image> shield: @image-url("icons/shield-outline.svg");
+    out property <image> chip: @image-url("icons/hardware-chip-outline.svg");
+    out property <image> flash: @image-url("icons/flash-outline.svg");
+    out property <image> glasses: @image-url("icons/glasses-outline.svg");
+    out property <image> list: @image-url("icons/list-outline.svg");
+    out property <image> search: @image-url("icons/search-outline.svg");
+    out property <image> globe: @image-url("icons/globe-outline.svg");
+    out property <image> code-slash: @image-url("icons/code-slash-outline.svg");
+    out property <image> create: @image-url("icons/create-outline.svg");
+    out property <image> merge: @image-url("icons/git-merge-outline.svg");
+    out property <image> terminal: @image-url("icons/terminal-outline.svg");
+    out property <image> branch: @image-url("icons/git-branch-outline.svg");
+    out property <image> checkbox-outline: @image-url("icons/checkbox-outline.svg");
+    out property <image> checkbox: @image-url("icons/checkbox.svg");
+    out property <image> square: @image-url("icons/square-outline.svg");
+    out property <image> puzzle: @image-url("icons/extension-puzzle-outline.svg");
+    out property <image> check-circle: @image-url("icons/checkmark-circle.svg");
+    out property <image> close-circle: @image-url("icons/close-circle.svg");
+    out property <image> alert: @image-url("icons/alert-circle.svg");
+    out property <image> copy: @image-url("icons/copy-outline.svg");
+    out property <image> trash: @image-url("icons/trash-outline.svg");
+    out property <image> pencil: @image-url("icons/pencil-outline.svg");
+    out property <image> finger-print: @image-url("icons/finger-print.svg");
+    out property <image> lock: @image-url("icons/lock-closed.svg");
+    out property <image> exit: @image-url("icons/exit.svg");
+    out property <image> bell: @image-url("icons/notifications-outline.svg");
+    out property <image> info: @image-url("icons/information-circle.svg");
+    out property <image> github: @image-url("icons/logo-github.svg");
+    out property <image> document: @image-url("icons/document-text.svg");
+    out property <image> open: @image-url("icons/open-outline.svg");
+    out property <image> arrow-forward-circle: @image-url("icons/arrow-forward-circle.svg");
+    out property <image> arrow-up: @image-url("icons/arrow-up-outline.svg");
+    out property <image> time: @image-url("icons/time-outline.svg");
+    out property <image> refresh: @image-url("icons/refresh-outline.svg");
+    out property <image> download: @image-url("icons/download-outline.svg");
+    out property <image> play: @image-url("icons/play-circle-outline.svg");
+    out property <image> contrast: @image-url("icons/contrast-outline.svg");
+    out property <image> image-icon: @image-url("icons/image-outline.svg");
+    out property <image> server: @image-url("icons/server-outline.svg");
+    out property <image> code: @image-url("icons/code-outline.svg");
+    out property <image> cloud: @image-url("icons/cloud-outline.svg");
+    out property <image> eye: @image-url("icons/eye-outline.svg");
+    out property <image> eye-off: @image-url("icons/eye-off-outline.svg");
+    out property <image> layers: @image-url("icons/layers-outline.svg");
+    out property <image> undo: @image-url("icons/arrow-undo-outline.svg");
+}

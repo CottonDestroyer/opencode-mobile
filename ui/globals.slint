@@ -1,0 +1,276 @@
+// The contract between Rust and the UI: plain view structs plus two globals, `State` (written by
+// Rust) and `Actions` (callbacks implemented in Rust).
+
+// Session list
+export struct SessionRow {
+    // 0 = directory group header, 1 = session.
+    kind: int,
+    id: string,
+    title: string,
+    meta: string,
+    dir: string,
+    dir-short: string,
+    count: int,
+    collapsed: bool,
+    busy: bool,
+}
+
+export struct DirRow {
+    path: string,
+    name: string,
+    current: bool,
+}
+
+// Chat
+export struct MdBlock {
+    // 0 paragraph, 1 heading, 2 code block, 3 block quote, 4 rule, 5 list item.
+    kind: int,
+    text: styled-text,
+    plain: string,
+    level: int,
+    bullet: string,
+    lang: string,
+}
+
+export struct DiffLine {
+    // 0 context, 1 added, 2 removed, 3 hunk header or note.
+    kind: int,
+    text: string,
+}
+
+export struct TodoRow {
+    text: string,
+    // 0 pending, 1 in progress, 2 completed, 3 cancelled.
+    status: int,
+}
+
+export struct ToolView {
+    id: string,
+    name: string,
+    title: string,
+    elapsed: string,
+    // 0 pending, 1 running, 2 completed, 3 error.
+    status: int,
+    expanded: bool,
+    file: string,
+    command: string,
+    meta: string,
+    output: string,
+    diffs: [DiffLine],
+    todos: [TodoRow],
+    error: string,
+    child-session: string,
+}
+
+export struct PartView {
+    // 0 markdown text, 1 reasoning, 2 tool call, 3 image, 4 plain text (user), 5 notice.
+    kind: int,
+    key: string,
+    blocks: [MdBlock],
+    text: string,
+    tool: ToolView,
+    image: image,
+    label: string,
+    expanded: bool,
+}
+
+export struct MessageView {
+    id: string,
+    user: bool,
+    model: string,
+    parts: [PartView],
+    error: string,
+    footer: string,
+}
+
+export struct PermissionView {
+    id: string,
+    title: string,
+    detail: string,
+}
+
+export struct AttachmentView {
+    image: image,
+    name: string,
+}
+
+export struct PickerRow {
+    // 0 = section header, 1 = selectable row.
+    kind: int,
+    value: string,
+    label: string,
+    detail: string,
+    selected: bool,
+}
+
+export struct SlashRow {
+    trigger: string,
+    description: string,
+    custom: bool,
+}
+
+export struct StatsView {
+    total: string,
+    percent: int,
+    cost: string,
+    input: string,
+    output: string,
+    reasoning: string,
+    cache-read: string,
+    cache-write: string,
+    created: string,
+    updated: string,
+    messages: string,
+    changes: string,
+    model: string,
+}
+
+// Providers
+export struct ProviderRow {
+    id: string,
+    name: string,
+    source: string,
+    models: string,
+    removable: bool,
+    connected: bool,
+}
+
+export global State {
+    // Navigation: 0 = sessions, 1 = providers, 2 = settings.
+    in-out property <int> tab: 0;
+    in-out property <bool> in-chat: false;
+    in property <string> toast;
+    in property <bool> toast-error;
+
+    // Sessions screen
+    in property <[SessionRow]> session-rows;
+    in property <string> project-name;
+    in property <string> project-path;
+    in property <[DirRow]> recent-dirs;
+    in property <bool> sessions-loading;
+
+    // Chat screen
+    in property <string> chat-title;
+    in property <string> chat-dir;
+    in property <bool> chat-demo;
+    in property <[MessageView]> messages;
+    in property <int> hidden-count;
+    in property <bool> busy;
+    in property <string> status-text;
+    in property <string> error-text;
+    in property <string> notice-text;
+    in property <bool> revert-active;
+    in property <[PermissionView]> permissions;
+    in-out property <string> input;
+    in property <[AttachmentView]> attachments;
+    in property <string> agent-name;
+    in property <color> agent-color: #8b5cf6;
+    in property <string> model-label;
+    in property <string> variant-label;
+    in property <bool> has-variants;
+    in property <bool> listening;
+    in property <bool> speech-available;
+    in-out property <bool> show-info;
+    in property <StatsView> stats;
+    in property <[SlashRow]> slash-rows;
+    // Incremented by Rust to scroll the chat to the newest message.
+    in property <int> scroll-to-bottom-tick;
+    in property <int> scroll-to-top-tick;
+    in property <string> select-text;
+    in-out property <bool> select-open;
+
+    // Pickers
+    in property <[PickerRow]> model-rows;
+    in-out property <bool> model-picker-open;
+    in property <[PickerRow]> variant-rows;
+    in-out property <bool> variant-picker-open;
+
+    // Providers screen
+    in property <[ProviderRow]> provider-rows;
+    in property <string> zen-status;
+    in property <bool> zen-has-key;
+    in property <[PickerRow]> catalog-rows;
+    in-out property <bool> add-key-open;
+    in property <string> add-key-provider;
+    in property <string> add-key-provider-name;
+
+    // Settings
+    in-out property <int> theme-pref: 0;
+    in-out property <bool> lock-enabled;
+    in-out property <bool> lock-send;
+    in property <bool> lock-available;
+    in property <string> lock-status;
+    in-out property <bool> notify-finished: true;
+    in-out property <bool> notify-permission: true;
+    in-out property <bool> notify-error: true;
+    in-out property <bool> auto-expand-thinking: false;
+    in property <string> version;
+    in property <string> data-dir;
+
+    // App lock
+    in property <bool> locked;
+
+    // Confirmation dialog, driven by Rust
+    in-out property <bool> confirm-open;
+    in property <string> confirm-title;
+    in property <string> confirm-text;
+    in property <string> confirm-button;
+}
+
+export global Actions {
+    // Sessions
+    callback open-session(string);
+    callback new-session();
+    callback new-session-in(string);
+    callback browse-new-session();
+    callback toggle-group(string);
+    callback rename-session(string, string);
+    callback delete-session(string);
+    callback switch-dir(string);
+    callback browse-switch-dir();
+    callback refresh-sessions();
+    callback start-demo();
+
+    // Chat
+    callback back();
+    callback send();
+    callback abort();
+    callback input-changed(string);
+    callback slash-selected(string);
+    callback cycle-agent(bool);
+    callback open-model-picker();
+    callback model-search(string);
+    callback pick-model(string);
+    callback open-variant-picker();
+    callback pick-variant(string);
+    callback permission-reply(string, int);
+    callback toggle-expand(string);
+    callback select-message(string);
+    callback edit-message(string);
+    callback copy-text(string);
+    callback undo-revert();
+    callback dismiss-error();
+    callback load-older();
+    callback load-all();
+    callback attach-image();
+    callback paste-clipboard();
+    callback remove-attachment(int);
+    callback toggle-mic();
+    callback open-child(string);
+    callback open-link(string);
+
+    // Providers
+    callback open-add-key();
+    callback catalog-search(string);
+    callback choose-key-provider(string);
+    callback save-key(string, string);
+    callback remove-key(string);
+
+    // Settings
+    callback settings-changed();
+    callback lock-now();
+    callback unlock();
+    callback open-url(string);
+    callback open-data-dir();
+    callback confirm-accepted();
+}
