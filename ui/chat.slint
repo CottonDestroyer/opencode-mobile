@@ -1,0 +1,913 @@
+import { Theme, Icons } from "theme.slint";
+import { State, Actions, StatsView } from "globals.slint";
+import { Icon, IconButton, Spin, Chip, PressArea } from "components.slint";
+import { MessageBubble } from "message.slint";
+
+component Pill inherits Rectangle {
+    in property <string> label;
+    in property <string> value;
+    in property <color> dot;
+    border-radius: 10px;
+    border-width: 1px;
+    border-color: dot.with-alpha(0.25);
+    background: Theme.dark ? dot.with-alpha(0.08) : transparent;
+    HorizontalLayout {
+        padding-left: 8px;
+        padding-right: 8px;
+        padding-top: 3px;
+        padding-bottom: 3px;
+        spacing: 4px;
+        Rectangle {
+            y: (parent.height - self.height) / 2;
+            width: 6px;
+            height: 6px;
+            border-radius: 3px;
+            background: root.dot;
+        }
+        Text {
+            text: root.label;
+            font-size: 11px;
+            color: Theme.text-2;
+        }
+        Text {
+            text: root.value;
+            font-size: 11px;
+            font-weight: 600;
+            color: Theme.text;
+        }
+    }
+}
+
+component MetaItem inherits HorizontalLayout {
+    in property <image> icon;
+    in property <string> label;
+    in property <string> value;
+    spacing: 4px;
+    Icon {
+        y: (parent.height - self.height) / 2;
+        source: root.icon;
+        size: 12px;
+        color: Theme.dark ? #555555 : #999999;
+    }
+    Text {
+        text: root.label;
+        font-size: 12px;
+        color: Theme.text-2;
+    }
+    Text {
+        text: root.value;
+        font-size: 12px;
+        font-weight: 500;
+        color: Theme.text;
+    }
+}
+
+component SessionInfo inherits Rectangle {
+    in property <StatsView> stats;
+    callback jump-top();
+    background: Theme.dark ? #111111 : #fafafa;
+    VerticalLayout {
+        padding: 12px;
+        spacing: 8px;
+        HorizontalLayout {
+            spacing: 6px;
+            Icon {
+                y: (parent.height - self.height) / 2;
+                source: Icons.stats;
+                size: 14px;
+            }
+            Text {
+                text: root.stats.total == "" ? "No usage data yet" : root.stats.total;
+                font-size: 14px;
+                font-weight: 600;
+                color: root.stats.total == "" ? Theme.text-2 : Theme.text;
+            }
+            if root.stats.percent > 0: Text {
+                text: root.stats.percent + "%";
+                font-size: 12px;
+                color: Theme.text-2;
+                vertical-alignment: center;
+            }
+            if root.stats.cost != "": Text {
+                text: "(" + root.stats.cost + ")";
+                font-size: 12px;
+                color: Theme.text-2;
+                vertical-alignment: center;
+            }
+            Rectangle {
+                horizontal-stretch: 1;
+            }
+            IconButton {
+                icon: Icons.close;
+                size: 16px;
+                tint: Theme.muted;
+                clicked => {
+                    State.show-info = false;
+                }
+            }
+        }
+        if root.stats.percent > 0: Rectangle {
+            height: 4px;
+            border-radius: 2px;
+            background: Theme.surface-2;
+            Rectangle {
+                x: 0;
+                width: parent.width * min(root.stats.percent, 100) / 100;
+                border-radius: 2px;
+                background: root.stats.percent > 80 ? Theme.red : root.stats.percent > 50 ? Theme.amber : Theme.green;
+            }
+        }
+        if root.stats.total != "": HorizontalLayout {
+            spacing: 6px;
+            alignment: start;
+            Pill {
+                label: "in";
+                value: root.stats.input;
+                dot: #3b82f6;
+            }
+            Pill {
+                label: "out";
+                value: root.stats.output;
+                dot: #10b981;
+            }
+            if root.stats.reasoning != "": Pill {
+                label: "think";
+                value: root.stats.reasoning;
+                dot: #f59e0b;
+            }
+            if root.stats.cache-read != "": Pill {
+                label: "cache";
+                value: root.stats.cache-read;
+                dot: #8b5cf6;
+            }
+            if root.stats.cache-write != "": Pill {
+                label: "write";
+                value: root.stats.cache-write;
+                dot: #ec4899;
+            }
+        }
+        HorizontalLayout {
+            spacing: 14px;
+            alignment: start;
+            MetaItem {
+                icon: Icons.time;
+                label: "Created";
+                value: root.stats.created;
+            }
+            if root.stats.updated != "": MetaItem {
+                icon: Icons.refresh;
+                label: "Updated";
+                value: root.stats.updated;
+            }
+            MetaItem {
+                icon: Icons.chats;
+                label: "Messages";
+                value: root.stats.messages;
+            }
+        }
+        if root.stats.changes != "" || root.stats.model != "": HorizontalLayout {
+            spacing: 14px;
+            alignment: start;
+            if root.stats.changes != "": MetaItem {
+                icon: Icons.code;
+                label: "Changes";
+                value: root.stats.changes;
+            }
+            if root.stats.model != "": MetaItem {
+                icon: Icons.chip;
+                label: "Model";
+                value: root.stats.model;
+            }
+        }
+        HorizontalLayout {
+            spacing: 8px;
+            alignment: start;
+            if State.hidden-count > 0: Chip {
+                text: "Load all messages";
+                icon: Icons.download;
+                tapped => {
+                    Actions.load-all();
+                }
+            }
+            Chip {
+                text: "Jump to beginning";
+                icon: Icons.arrow-up;
+                tapped => {
+                    root.jump-top();
+                }
+            }
+        }
+    }
+    Rectangle {
+        y: parent.height - 1px;
+        height: 1px;
+        background: Theme.border;
+    }
+}
+
+component Banner inherits Rectangle {
+    in property <string> text;
+    in property <string> action;
+    callback act();
+    HorizontalLayout {
+        padding-left: 16px;
+        padding-right: 16px;
+        padding-top: 6px;
+        padding-bottom: 6px;
+        spacing: 12px;
+        Text {
+            horizontal-stretch: 1;
+            text: root.text;
+            color: #ffffff;
+            font-size: 13px;
+            font-weight: 500;
+            wrap: word-wrap;
+            vertical-alignment: center;
+        }
+        if root.action != "": Text {
+            text: root.action;
+            color: #ffffffcc;
+            font-size: 13px;
+            font-weight: 700;
+            vertical-alignment: center;
+            TouchArea {
+                mouse-cursor: pointer;
+                clicked => {
+                    root.act();
+                }
+            }
+        }
+    }
+}
+
+component PermissionCard inherits Rectangle {
+    in property <string> id;
+    in property <string> title;
+    in property <string> detail;
+    background: Theme.dark ? #1a1800 : #fffbeb;
+    border-width: 1px;
+    border-color: Theme.warn-border;
+    border-radius: 12px;
+    VerticalLayout {
+        padding: 16px;
+        spacing: 8px;
+        HorizontalLayout {
+            spacing: 8px;
+            Icon {
+                source: Icons.shield;
+                size: 18px;
+                color: Theme.amber;
+            }
+            Text {
+                text: "Permission Required";
+                font-size: 15px;
+                font-weight: 600;
+                color: Theme.dark ? #ffffff : #92400e;
+            }
+        }
+        Text {
+            text: root.title;
+            font-size: 13px;
+            color: Theme.warn-text;
+            wrap: char-wrap;
+        }
+        if root.detail != "": Text {
+            text: root.detail;
+            font-size: 12px;
+            font-family: Theme.mono;
+            color: Theme.warn-text;
+            wrap: char-wrap;
+            opacity: 0.8;
+        }
+        HorizontalLayout {
+            spacing: 8px;
+            padding-top: 4px;
+            for b[i] in [
+                { label: "Deny", reply: 2 },
+                { label: "Always", reply: 1 },
+                { label: "Allow", reply: 0 },
+            ]: Rectangle {
+                height: 40px;
+                horizontal-stretch: 1;
+                border-radius: 8px;
+                background: b.reply == 2 ? (Theme.dark ? #3b1212 : #fef2f2) : b.reply == 1 ? (Theme.dark ? #2a2a2a : #f5f5f5) : Theme.primary;
+                opacity: bta.pressed ? 0.75 : 1;
+                Text {
+                    text: b.label;
+                    font-size: 14px;
+                    font-weight: 600;
+                    color: b.reply == 2 ? #dc2626 : b.reply == 1 ? Theme.text : Theme.on-primary;
+                }
+                bta := TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => {
+                        Actions.permission-reply(root.id, b.reply);
+                    }
+                }
+            }
+        }
+    }
+}
+
+export component ChatScreen inherits Rectangle {
+    background: Theme.bg;
+    private property <bool> stick: true;
+    private property <int> bottom-tick: State.scroll-to-bottom-tick;
+    private property <int> top-tick: State.scroll-to-top-tick;
+    private property <bool> slash-active: State.slash-rows.length > 0;
+    changed bottom-tick => {
+        root.stick = true;
+        flick.content-y = min(0px, flick.height - flick.content-height);
+    }
+    changed top-tick => {
+        root.stick = false;
+        flick.content-y = 0;
+    }
+
+    // Focuses the composer with the caret at the end; the offsets are clamped to the text length.
+    public function focus-input() {
+        inp.focus();
+        inp.set-selection-offsets(2147483647, 2147483647);
+    }
+
+    VerticalLayout {
+        // Header
+        Rectangle {
+            height: 56px;
+            HorizontalLayout {
+                padding-left: 4px;
+                padding-right: 8px;
+                spacing: 4px;
+                IconButton {
+                    y: (parent.height - self.height) / 2;
+                    icon: Icons.back;
+                    size: 22px;
+                    tint: Theme.text;
+                    clicked => {
+                        Actions.back();
+                    }
+                }
+                Text {
+                    horizontal-stretch: 1;
+                    text: State.chat-title;
+                    font-size: 17px;
+                    font-weight: 600;
+                    color: Theme.text;
+                    overflow: elide;
+                    vertical-alignment: center;
+                }
+                if State.chat-dir != "": Rectangle {
+                    y: (parent.height - self.height) / 2;
+                    height: 24px;
+                    background: Theme.surface;
+                    border-radius: 6px;
+                    HorizontalLayout {
+                        padding-left: 8px;
+                        padding-right: 8px;
+                        spacing: 4px;
+                        Icon {
+                            y: (parent.height - self.height) / 2;
+                            source: Icons.folder-outline;
+                            size: 14px;
+                        }
+                        Text {
+                            text: State.chat-dir;
+                            font-size: 12px;
+                            font-weight: 500;
+                            color: Theme.text-2;
+                            vertical-alignment: center;
+                            overflow: elide;
+                            max-width: 110px;
+                        }
+                    }
+                }
+                IconButton {
+                    y: (parent.height - self.height) / 2;
+                    icon: State.show-info ? Icons.stats-filled : Icons.stats;
+                    tint: State.show-info ? #3b82f6 : Theme.text-2;
+                    clicked => {
+                        State.show-info = !State.show-info;
+                    }
+                }
+            }
+            Rectangle {
+                y: parent.height - 1px;
+                height: 1px;
+                background: Theme.border;
+            }
+        }
+
+        if State.show-info: SessionInfo {
+            stats: State.stats;
+            jump-top => {
+                root.stick = false;
+                flick.content-y = 0;
+            }
+        }
+
+        if State.error-text != "": Banner {
+            background: #991b1b;
+            text: State.error-text;
+            action: "Dismiss";
+            act => {
+                Actions.dismiss-error();
+            }
+        }
+        if State.notice-text != "": Banner {
+            background: #92400e;
+            text: State.notice-text;
+        }
+        if State.revert-active: Banner {
+            background: #1e3a8a;
+            text: "Editing an earlier message. Later messages are hidden until you send.";
+            action: "Undo";
+            act => {
+                Actions.undo-revert();
+            }
+        }
+
+        // Messages
+        Rectangle {
+            vertical-stretch: 1;
+            flick := Flickable {
+                content-width: self.width;
+                content-height: max(self.height, col.preferred-height);
+                changed content-height => {
+                    if root.stick {
+                        self.content-y = min(0px, self.height - self.content-height);
+                    }
+                }
+                changed height => {
+                    if root.stick {
+                        self.content-y = min(0px, self.height - self.content-height);
+                    }
+                }
+                // Derived from content-y rather than `flicked`, which fires before a wheel or kinetic
+                // scroll animation has actually moved the content.
+                changed content-y => {
+                    root.stick = self.content-y <= self.height - self.content-height + 48px;
+                }
+                col := VerticalLayout {
+                    width: flick.width;
+                    padding: 16px;
+                    padding-bottom: 8px;
+                    alignment: start;
+                    if State.hidden-count > 0: HorizontalLayout {
+                        alignment: center;
+                        padding-bottom: 12px;
+                        Chip {
+                            text: "Load " + min(State.hidden-count, 30) + " older messages";
+                            icon: Icons.download;
+                            tapped => {
+                                Actions.load-older();
+                            }
+                        }
+                    }
+                    for m in State.messages: MessageBubble {
+                        message: m;
+                    }
+                }
+            }
+            if State.messages.length == 0: VerticalLayout {
+                alignment: center;
+                spacing: 4px;
+                HorizontalLayout {
+                    alignment: center;
+                    Icon {
+                        source: Icons.chat;
+                        size: 48px;
+                        color: Theme.faint;
+                    }
+                }
+                Text {
+                    text: "Start a conversation";
+                    font-size: 16px;
+                    color: Theme.muted;
+                    horizontal-alignment: center;
+                }
+                Text {
+                    text: "Ask the agent to read, write or fix code in this project";
+                    font-size: 13px;
+                    color: Theme.dark ? #666666 : #bbbbbb;
+                    horizontal-alignment: center;
+                }
+            }
+            if !root.stick: Rectangle {
+                x: parent.width - self.width - 16px;
+                y: parent.height - self.height - 16px;
+                width: 44px;
+                height: 44px;
+                border-radius: 22px;
+                background: Theme.dark ? #2a2a2a : #ffffff;
+                drop-shadow-blur: 6px;
+                drop-shadow-offset-y: 2px;
+                drop-shadow-color: #00000033;
+                Icon {
+                    source: Icons.chevron-down;
+                    size: 24px;
+                    color: Theme.text;
+                }
+                TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => {
+                        root.stick = true;
+                        flick.content-y = min(0px, flick.height - flick.content-height);
+                    }
+                }
+            }
+        }
+
+        // Status line
+        if State.busy: Rectangle {
+            height: 36px;
+            background: Theme.accent-soft;
+            HorizontalLayout {
+                padding-left: 16px;
+                padding-right: 16px;
+                spacing: 8px;
+                Spin {
+                    y: (parent.height - self.height) / 2;
+                }
+                Text {
+                    text: State.status-text == "" ? "Working…" : State.status-text;
+                    font-size: 13px;
+                    font-weight: 500;
+                    color: Theme.accent-strong;
+                    vertical-alignment: center;
+                    overflow: elide;
+                }
+            }
+            Rectangle {
+                y: 0;
+                height: 1px;
+                background: Theme.hairline;
+            }
+        }
+
+        // Pending permissions
+        for p in State.permissions: HorizontalLayout {
+            padding: 12px;
+            PermissionCard {
+                id: p.id;
+                title: p.title;
+                detail: p.detail;
+            }
+        }
+
+        // Slash command popover
+        if root.slash-active: Rectangle {
+            height: min(220px, State.slash-rows.length * 52px + 8px);
+            background: Theme.dark ? #1a1a1a : #ffffff;
+            Rectangle {
+                y: 0;
+                height: 1px;
+                background: Theme.hairline;
+            }
+            Flickable {
+                content-height: slash-col.preferred-height;
+                slash-col := VerticalLayout {
+                    width: parent.width;
+                    padding-top: 4px;
+                    padding-bottom: 4px;
+                    for c in State.slash-rows: Rectangle {
+                        height: 52px;
+                        background: sta.has-hover ? Theme.surface : transparent;
+                        HorizontalLayout {
+                            padding-left: 16px;
+                            padding-right: 16px;
+                            spacing: 10px;
+                            Icon {
+                                y: (parent.height - self.height) / 2;
+                                source: c.custom ? Icons.code-slash : Icons.flash;
+                                size: 18px;
+                            }
+                            VerticalLayout {
+                                alignment: center;
+                                horizontal-stretch: 1;
+                                Text {
+                                    text: "/" + c.trigger;
+                                    font-size: 14px;
+                                    font-weight: 600;
+                                    color: Theme.text;
+                                }
+                                Text {
+                                    text: c.description;
+                                    font-size: 12px;
+                                    color: Theme.muted;
+                                    overflow: elide;
+                                }
+                            }
+                            if c.custom: Rectangle {
+                                y: (parent.height - self.height) / 2;
+                                height: 18px;
+                                border-radius: 4px;
+                                background: Theme.dark ? #2a1a3e : #f3e8ff;
+                                HorizontalLayout {
+                                    padding-left: 6px;
+                                    padding-right: 6px;
+                                    Text {
+                                        text: "custom";
+                                        font-size: 10px;
+                                        font-weight: 600;
+                                        color: Theme.accent;
+                                        vertical-alignment: center;
+                                    }
+                                }
+                            }
+                        }
+                        sta := TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => {
+                                Actions.slash-selected(c.trigger);
+                                inp.focus();
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Agent / model / variant toolbar
+        Rectangle {
+            height: 38px;
+            Rectangle {
+                y: 0;
+                height: 1px;
+                background: Theme.border;
+            }
+            HorizontalLayout {
+                padding-left: 12px;
+                padding-right: 12px;
+                spacing: 8px;
+                alignment: start;
+                Rectangle {
+                    y: (parent.height - self.height) / 2;
+                    height: 26px;
+                    border-radius: 13px;
+                    border-width: 1px;
+                    border-color: State.agent-color;
+                    HorizontalLayout {
+                        padding-left: 10px;
+                        padding-right: 10px;
+                        spacing: 5px;
+                        Rectangle {
+                            y: (parent.height - self.height) / 2;
+                            width: 8px;
+                            height: 8px;
+                            border-radius: 4px;
+                            background: State.agent-color;
+                        }
+                        Text {
+                            text: State.agent-name;
+                            font-size: 12px;
+                            font-weight: 600;
+                            color: Theme.text;
+                            vertical-alignment: center;
+                        }
+                        Icon {
+                            y: (parent.height - self.height) / 2;
+                            source: Icons.swap;
+                            size: 12px;
+                        }
+                    }
+                    PressArea {
+                        mouse-cursor: pointer;
+                        tapped => {
+                            Actions.cycle-agent(false);
+                        }
+                        long-pressed => {
+                            Actions.cycle-agent(true);
+                        }
+                    }
+                }
+                Chip {
+                    y: (parent.height - self.height) / 2;
+                    text: State.model-label;
+                    icon: Icons.chip;
+                    tapped => {
+                        Actions.open-model-picker();
+                    }
+                }
+                if State.has-variants: Chip {
+                    y: (parent.height - self.height) / 2;
+                    text: State.variant-label == "" ? "Auto" : State.variant-label;
+                    icon: Icons.flash;
+                    fg: State.variant-label == "" ? Theme.text-2 : Theme.accent;
+                    bg: State.variant-label == "" ? Theme.surface : (Theme.dark ? #1f1a2e : #f5f3ff);
+                    tapped => {
+                        Actions.open-variant-picker();
+                    }
+                }
+            }
+        }
+
+        // Attachment previews
+        if State.attachments.length > 0: HorizontalLayout {
+            padding-left: 12px;
+            padding-right: 12px;
+            padding-bottom: 6px;
+            spacing: 8px;
+            alignment: start;
+            for a[i] in State.attachments: Rectangle {
+                width: 64px;
+                height: 64px;
+                border-radius: 8px;
+                clip: true;
+                background: Theme.surface;
+                Image {
+                    width: 100%;
+                    height: 100%;
+                    source: a.image;
+                    image-fit: cover;
+                }
+                Rectangle {
+                    x: parent.width - self.width - 2px;
+                    y: 2px;
+                    width: 20px;
+                    height: 20px;
+                    border-radius: 10px;
+                    background: #000000aa;
+                    Icon {
+                        source: Icons.close;
+                        size: 14px;
+                        color: #ffffff;
+                    }
+                    TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => {
+                            Actions.remove-attachment(i);
+                        }
+                    }
+                }
+            }
+        }
+
+        // Composer
+        Rectangle {
+            Rectangle {
+                y: 0;
+                height: 1px;
+                background: Theme.border;
+            }
+            HorizontalLayout {
+                padding: 12px;
+                spacing: 0px;
+                alignment: stretch;
+                VerticalLayout {
+                    alignment: end;
+                    PressArea {
+                        width: 36px;
+                        height: 40px;
+                        mouse-cursor: pointer;
+                        Icon {
+                            source: Icons.add-circle;
+                            size: 26px;
+                        }
+                        tapped => {
+                            Actions.attach-image();
+                        }
+                        long-pressed => {
+                            Actions.paste-clipboard();
+                        }
+                    }
+                }
+                VerticalLayout {
+                    alignment: end;
+                    TouchArea {
+                        width: 36px;
+                        height: 40px;
+                        mouse-cursor: pointer;
+                        Icon {
+                            source: Icons.clipboard;
+                            size: 22px;
+                        }
+                        clicked => {
+                            Actions.paste-clipboard();
+                        }
+                    }
+                }
+                Rectangle {
+                    horizontal-stretch: 1;
+                    height: min(140px, max(40px, inp.preferred-height + 20px));
+                    border-radius: 20px;
+                    background: Theme.surface;
+                    border-width: State.listening ? 1px : 0px;
+                    border-color: Theme.red;
+                    if State.input == "": Text {
+                        x: 16px;
+                        y: 10px;
+                        width: parent.width - 32px;
+                        text: State.listening ? "Listening…" : State.busy ? "Send a follow-up (queued)…" : "Message…";
+                        font-size: 15px;
+                        color: State.listening ? Theme.red : Theme.muted;
+                        overflow: elide;
+                    }
+                    fs := FocusScope {
+                        x: 16px;
+                        y: 10px;
+                        width: parent.width - 32px;
+                        height: parent.height - 20px;
+                        capture-key-pressed(ev) => {
+                            if ev.text == Key.Return && !ev.modifiers.shift {
+                                Actions.send();
+                                return accept;
+                            }
+                            if ev.text == "v" && ev.modifiers.control && ev.modifiers.shift {
+                                Actions.paste-clipboard();
+                                return accept;
+                            }
+                            return reject;
+                        }
+                        Flickable {
+                            content-height: max(self.height, inp.preferred-height);
+                            inp := TextInput {
+                                width: parent.width;
+                                text <=> State.input;
+                                single-line: false;
+                                wrap: word-wrap;
+                                font-size: 15px;
+                                color: Theme.text;
+                                read-only: State.listening;
+                                selection-background-color: Theme.accent.with-alpha(0.35);
+                                edited => {
+                                    Actions.input-changed(self.text);
+                                }
+                            }
+                        }
+                    }
+                }
+                VerticalLayout {
+                    alignment: end;
+                    padding-left: 8px;
+                    if State.listening: Rectangle {
+                        width: 40px;
+                        height: 40px;
+                        border-radius: 20px;
+                        background: Theme.red;
+                        Icon {
+                            source: Icons.mic;
+                            size: 22px;
+                            color: #ffffff;
+                        }
+                        TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => {
+                                Actions.toggle-mic();
+                            }
+                        }
+                    }
+                    if !State.listening && (State.input != "" || State.attachments.length > 0): Rectangle {
+                        width: 40px;
+                        height: 40px;
+                        border-radius: 20px;
+                        background: Theme.primary;
+                        Icon {
+                            source: Icons.send;
+                            size: 20px;
+                            color: Theme.on-primary;
+                        }
+                        TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => {
+                                Actions.send();
+                            }
+                        }
+                    }
+                    if !State.listening && State.input == "" && State.attachments.length == 0 && State.busy: Rectangle {
+                        width: 40px;
+                        height: 40px;
+                        border-radius: 20px;
+                        background: Theme.red;
+                        Icon {
+                            source: Icons.stop;
+                            size: 20px;
+                            color: #ffffff;
+                        }
+                        TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => {
+                                Actions.abort();
+                            }
+                        }
+                    }
+                    if !State.listening && State.input == "" && State.attachments.length == 0 && !State.busy: Rectangle {
+                        width: 40px;
+                        height: 40px;
+                        border-radius: 20px;
+                        opacity: State.speech-available ? 1 : 0.4;
+                        Icon {
+                            source: Icons.mic;
+                            size: 22px;
+                        }
+                        TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => {
+                                Actions.toggle-mic();
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

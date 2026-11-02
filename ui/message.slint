@@ -1,0 +1,613 @@
+import { Theme, Icons } from "theme.slint";
+import { Actions, MdBlock, DiffLine, TodoRow, ToolView, PartView, MessageView } from "globals.slint";
+import { Icon, Spin, IconButton } from "components.slint";
+
+// Monospace text on a code background.
+component CodeBox inherits Rectangle {
+    in property <string> text;
+    in property <string> prefix;
+    in property <color> fg: Theme.code-text;
+    background: Theme.code-bg;
+    border-radius: 6px;
+    HorizontalLayout {
+        padding: 10px;
+        spacing: 0px;
+        if root.prefix != "": Text {
+            text: root.prefix;
+            font-family: Theme.mono;
+            font-size: 12px;
+            font-weight: 700;
+            color: Theme.accent;
+        }
+        Text {
+            text: root.text;
+            wrap: char-wrap;
+            font-family: Theme.mono;
+            font-size: 12px;
+            color: root.fg;
+        }
+    }
+}
+
+component CodeBlock inherits Rectangle {
+    in property <MdBlock> block;
+    background: Theme.code-bg;
+    border-radius: 8px;
+    VerticalLayout {
+        HorizontalLayout {
+            padding-left: 10px;
+            padding-right: 2px;
+            height: 28px;
+            Text {
+                text: root.block.lang;
+                font-size: 11px;
+                color: Theme.muted;
+                vertical-alignment: center;
+                horizontal-stretch: 1;
+            }
+            IconButton {
+                icon: Icons.copy;
+                size: 14px;
+                clicked => {
+                    Actions.copy-text(root.block.plain);
+                }
+            }
+        }
+        HorizontalLayout {
+            padding-left: 10px;
+            padding-right: 10px;
+            padding-bottom: 10px;
+            Text {
+                text: root.block.plain;
+                wrap: char-wrap;
+                font-family: Theme.mono;
+                font-size: 12.5px;
+                color: Theme.code-text;
+            }
+        }
+    }
+}
+
+// One markdown block.
+//
+// Every `for` in this file uses a named component as its body. Slint 1.18 measures wrapped text in
+// an inline `for` body without its width constraint, which made the chat's content height too short
+// and cut off the end of long messages.
+component MdBlockView inherits VerticalLayout {
+    in property <MdBlock> b;
+    in property <color> color;
+    in property <length> font-size;
+    if root.b.kind == 0: StyledText {
+        min-width: 0px;
+        text: root.b.text;
+        default-color: root.color;
+        default-font-size: root.font-size;
+        link-color: Theme.accent-strong;
+        link-clicked(link) => {
+            Actions.open-link(link);
+        }
+    }
+    if root.b.kind == 1: VerticalLayout {
+        padding-top: 4px;
+        StyledText {
+            min-width: 0px;
+            text: root.b.text;
+            default-color: root.color;
+            default-font-size: root.b.level <= 1 ? 20px : root.b.level == 2 ? 18px : 16px;
+            link-color: Theme.accent-strong;
+            link-clicked(link) => {
+                Actions.open-link(link);
+            }
+        }
+    }
+    if root.b.kind == 2: CodeBlock {
+        block: root.b;
+    }
+    if root.b.kind == 3: HorizontalLayout {
+        spacing: 10px;
+        Rectangle {
+            width: 3px;
+            border-radius: 1.5px;
+            background: Theme.accent.with-alpha(0.6);
+        }
+        StyledText {
+            min-width: 0px;
+            text: root.b.text;
+            default-color: Theme.text-2;
+            default-font-size: root.font-size;
+            link-color: Theme.accent-strong;
+            link-clicked(link) => {
+                Actions.open-link(link);
+            }
+        }
+    }
+    if root.b.kind == 4: VerticalLayout {
+        padding-top: 4px;
+        padding-bottom: 4px;
+        Rectangle {
+            height: 1px;
+            background: Theme.hairline;
+        }
+    }
+    if root.b.kind == 5: HorizontalLayout {
+        Rectangle {
+            width: root.b.level * 18px;
+        }
+        spacing: 4px;
+        Text {
+            text: root.b.bullet;
+            min-width: 18px;
+            font-size: root.font-size;
+            color: Theme.text-2;
+        }
+        StyledText {
+            min-width: 0px;
+            horizontal-stretch: 1;
+            text: root.b.text;
+            default-color: root.color;
+            default-font-size: root.font-size;
+            link-color: Theme.accent-strong;
+            link-clicked(link) => {
+                Actions.open-link(link);
+            }
+        }
+    }
+}
+
+export component Markdown inherits VerticalLayout {
+    in property <[MdBlock]> blocks;
+    in property <color> color: Theme.text;
+    in property <length> font-size: 15px;
+    spacing: 8px;
+    for b in root.blocks: MdBlockView {
+        b: b;
+        color: root.color;
+        font-size: root.font-size;
+    }
+}
+
+component ReasoningBlock inherits Rectangle {
+    in property <PartView> part;
+    background: Theme.warn-bg;
+    border-width: 1px;
+    border-color: Theme.warn-border;
+    border-radius: 8px;
+    VerticalLayout {
+        padding: 10px;
+        spacing: 8px;
+        HorizontalLayout {
+            spacing: 6px;
+            Icon {
+                source: Icons.bulb;
+                size: 14px;
+                color: Theme.amber;
+            }
+            Text {
+                text: "Thinking";
+                font-size: 12px;
+                font-weight: 600;
+                color: Theme.warn-title;
+                horizontal-stretch: 1;
+            }
+            Icon {
+                source: root.part.expanded ? Icons.chevron-up : Icons.chevron-down;
+                size: 14px;
+                color: Theme.muted;
+            }
+        }
+        if root.part.expanded: Markdown {
+            blocks: root.part.blocks;
+            color: Theme.warn-text;
+            font-size: 13px;
+        }
+    }
+    TouchArea {
+        mouse-cursor: pointer;
+        clicked => {
+            Actions.toggle-expand(root.part.key);
+        }
+    }
+}
+
+component DiffLineView inherits Rectangle {
+    in property <DiffLine> l;
+    background: root.l.kind == 1 ? Theme.add-bg : root.l.kind == 2 ? Theme.del-bg : transparent;
+    HorizontalLayout {
+        padding-left: 8px;
+        padding-right: 8px;
+        Text {
+            width: 16px;
+            text: root.l.kind == 1 ? "+" : root.l.kind == 2 ? "-" : " ";
+            font-family: Theme.mono;
+            font-size: 12px;
+            color: Theme.muted;
+        }
+        Text {
+            horizontal-stretch: 1;
+            text: root.l.text == "" ? " " : root.l.text;
+            font-family: Theme.mono;
+            font-size: 12px;
+            wrap: char-wrap;
+            color: root.l.kind == 1 ? Theme.add-text : root.l.kind == 2 ? Theme.del-text : root.l.kind == 3 ? Theme.accent-strong : Theme.code-text;
+        }
+    }
+}
+
+component DiffView inherits Rectangle {
+    in property <[DiffLine]> lines;
+    background: Theme.code-bg;
+    border-radius: 6px;
+    clip: true;
+    VerticalLayout {
+        padding-top: 2px;
+        padding-bottom: 2px;
+        for l in root.lines: DiffLineView {
+            l: l;
+        }
+    }
+}
+
+component TodoItem inherits HorizontalLayout {
+    in property <TodoRow> t;
+    spacing: 8px;
+    padding-top: 2px;
+    padding-bottom: 2px;
+    Icon {
+        source: root.t.status == 2 ? Icons.checkbox : Icons.square;
+        size: 16px;
+        color: root.t.status == 2 ? Theme.green : root.t.status == 1 ? Theme.accent : Theme.muted;
+    }
+    Text {
+        horizontal-stretch: 1;
+        text: root.t.text;
+        font-size: 13px;
+        wrap: word-wrap;
+        color: root.t.status >= 2 ? Theme.muted : root.t.status == 1 ? Theme.accent-strong : (Theme.dark ? #e5e5e5 : #0a0a0a);
+        stroke-width: 0;
+    }
+}
+
+component ErrorBanner inherits Rectangle {
+    in property <string> text;
+    background: Theme.dark ? #1a0a0a : #fef2f2;
+    border-radius: 6px;
+    HorizontalLayout {
+        padding: 8px;
+        spacing: 6px;
+        Icon {
+            source: Icons.alert;
+            size: 14px;
+            color: Theme.red;
+        }
+        Text {
+            horizontal-stretch: 1;
+            text: root.text;
+            font-size: 12px;
+            color: #dc2626;
+            wrap: char-wrap;
+        }
+    }
+}
+
+component ToolCard inherits Rectangle {
+    in property <ToolView> tool;
+    in property <string> key;
+    pure function status-color(s: int) -> color {
+        return s == 2 ? Theme.green : s == 3 ? Theme.red : s == 1 ? Theme.amber : #888888;
+    }
+    pure function icon-for(name: string) -> image {
+        return name == "read" ? Icons.glasses
+            : name == "glob" || name == "grep" ? Icons.search
+            : name == "webfetch" || name == "websearch" ? Icons.globe
+            : name == "edit" ? Icons.code-slash
+            : name == "write" ? Icons.create
+            : name == "patch" ? Icons.merge
+            : name == "shell" ? Icons.terminal
+            : name == "subagent" ? Icons.branch
+            : name == "todowrite" ? Icons.checkbox-outline
+            : name == "skill" ? Icons.layers
+            : Icons.puzzle;
+    }
+    background: Theme.card;
+    border-width: 1px;
+    border-color: tool.status == 3 ? Theme.err-border : Theme.card-border;
+    border-radius: 8px;
+    VerticalLayout {
+        padding: 10px;
+        spacing: 8px;
+        HorizontalLayout {
+            spacing: 8px;
+            Icon {
+                y: (parent.height - self.height) / 2;
+                source: root.icon-for(root.tool.name);
+                size: 16px;
+                color: root.status-color(root.tool.status);
+            }
+            Text {
+                horizontal-stretch: 1;
+                text: root.tool.title;
+                font-size: 13px;
+                font-weight: 500;
+                color: Theme.dark ? #e5e5e5 : #0a0a0a;
+                overflow: elide;
+                vertical-alignment: center;
+            }
+            if root.tool.elapsed != "": Text {
+                text: root.tool.elapsed;
+                font-size: 11px;
+                color: Theme.muted;
+                vertical-alignment: center;
+            }
+            if root.tool.status <= 1: Spin {
+                y: (parent.height - self.height) / 2;
+                tint: Theme.amber;
+            }
+            if root.tool.status == 2: Icon {
+                y: (parent.height - self.height) / 2;
+                source: Icons.check-circle;
+                size: 16px;
+                color: Theme.green;
+            }
+            if root.tool.status == 3: Icon {
+                y: (parent.height - self.height) / 2;
+                source: Icons.close-circle;
+                size: 16px;
+                color: Theme.red;
+            }
+            Icon {
+                y: (parent.height - self.height) / 2;
+                source: root.tool.expanded ? Icons.chevron-up : Icons.chevron-down;
+                size: 16px;
+                color: Theme.muted;
+            }
+        }
+        if root.tool.error != "": ErrorBanner {
+            text: root.tool.error;
+        }
+        if root.tool.expanded: VerticalLayout {
+            spacing: 6px;
+            if root.tool.file != "": Rectangle {
+                background: Theme.accent-soft;
+                border-radius: 4px;
+                HorizontalLayout {
+                    padding-left: 8px;
+                    padding-right: 8px;
+                    padding-top: 4px;
+                    padding-bottom: 4px;
+                    Text {
+                        text: root.tool.file;
+                        font-family: Theme.mono;
+                        font-size: 12px;
+                        color: Theme.accent-strong;
+                        wrap: char-wrap;
+                    }
+                }
+            }
+            if root.tool.meta != "": Text {
+                text: root.tool.meta;
+                font-size: 12px;
+                color: Theme.text-2;
+                wrap: char-wrap;
+            }
+            if root.tool.command != "": CodeBox {
+                prefix: "$ ";
+                text: root.tool.command;
+            }
+            if root.tool.diffs.length > 0: DiffView {
+                lines: root.tool.diffs;
+            }
+            for t in root.tool.todos: TodoItem {
+                t: t;
+            }
+            if root.tool.output != "": CodeBox {
+                text: root.tool.output;
+            }
+            if root.tool.child-session != "": HorizontalLayout {
+                alignment: start;
+                Rectangle {
+                    border-radius: 12px;
+                    border-width: 1px;
+                    border-color: Theme.accent-strong;
+                    HorizontalLayout {
+                        padding-left: 10px;
+                        padding-right: 10px;
+                        padding-top: 4px;
+                        padding-bottom: 4px;
+                        spacing: 4px;
+                        Icon {
+                            source: Icons.branch;
+                            size: 12px;
+                            color: Theme.accent-strong;
+                        }
+                        Text {
+                            text: "Open subagent session";
+                            font-size: 12px;
+                            color: Theme.accent-strong;
+                        }
+                    }
+                    TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => {
+                            Actions.open-child(root.tool.child-session);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    // Only the header row toggles, so text in the expanded body stays selectable.
+    TouchArea {
+        y: 0;
+        height: 36px;
+        mouse-cursor: pointer;
+        clicked => {
+            Actions.toggle-expand(root.key);
+        }
+    }
+}
+
+component SmallChip inherits Rectangle {
+    in property <string> text;
+    callback clicked();
+    border-radius: 10px;
+    border-width: 1px;
+    border-color: Theme.dark ? #404040 : #d4d4d4;
+    HorizontalLayout {
+        padding-left: 8px;
+        padding-right: 8px;
+        padding-top: 3px;
+        padding-bottom: 3px;
+        Text {
+            text: root.text;
+            font-size: 11px;
+            color: Theme.dark ? #d4d4d4 : #525252;
+        }
+    }
+    TouchArea {
+        mouse-cursor: pointer;
+        clicked => {
+            root.clicked();
+        }
+    }
+}
+
+component PartBody inherits VerticalLayout {
+    in property <PartView> p;
+    if root.p.kind == 0: Markdown {
+        blocks: root.p.blocks;
+    }
+    if root.p.kind == 1: ReasoningBlock {
+        part: root.p;
+    }
+    if root.p.kind == 2: ToolCard {
+        tool: root.p.tool;
+        key: root.p.key;
+    }
+    if root.p.kind == 3: HorizontalLayout {
+        alignment: start;
+        VerticalLayout {
+            spacing: 2px;
+            Rectangle {
+                width: 200px;
+                height: 200px;
+                border-radius: 8px;
+                clip: true;
+                background: Theme.tag;
+                Image {
+                    width: 100%;
+                    height: 100%;
+                    source: root.p.image;
+                    image-fit: cover;
+                }
+            }
+            if root.p.label != "": Text {
+                text: root.p.label;
+                font-size: 10px;
+                color: Theme.text-2;
+                overflow: elide;
+                max-width: 200px;
+            }
+        }
+    }
+    if root.p.kind == 4: Text {
+        text: root.p.text;
+        wrap: word-wrap;
+        font-size: 15px;
+        color: Theme.text;
+    }
+    if root.p.kind == 5: Text {
+        text: root.p.text;
+        font-size: 12px;
+        font-italic: true;
+        color: Theme.text-2;
+        wrap: word-wrap;
+    }
+}
+
+export component MessageBubble inherits HorizontalLayout {
+    in property <MessageView> message;
+    if message.user: Rectangle {
+        width: 32px;
+    }
+    padding-bottom: 16px;
+    Rectangle {
+        background: root.message.user ? Theme.bubble-user : Theme.bubble-assistant;
+        clip: true;
+        border-radius: 12px;
+        VerticalLayout {
+            padding: 12px;
+            spacing: 8px;
+            HorizontalLayout {
+                spacing: 6px;
+                Icon {
+                    y: (parent.height - self.height) / 2;
+                    source: root.message.user ? Icons.person : Icons.sparkles;
+                    size: 14px;
+                    color: root.message.user ? Theme.text : Theme.accent;
+                }
+                Text {
+                    text: root.message.user ? "You" : "Assistant";
+                    font-size: 13px;
+                    font-weight: 600;
+                    color: root.message.user || Theme.dark ? Theme.text : #666666;
+                    vertical-alignment: center;
+                }
+                if root.message.model != "": Rectangle {
+                    background: Theme.tag;
+                    border-radius: 4px;
+                    HorizontalLayout {
+                        padding-left: 6px;
+                        padding-right: 6px;
+                        padding-top: 2px;
+                        padding-bottom: 2px;
+                        Text {
+                            text: root.message.model;
+                            font-size: 11px;
+                            color: Theme.dark ? #888888 : #999999;
+                            overflow: elide;
+                            max-width: 150px;
+                        }
+                    }
+                }
+                Rectangle {
+                    horizontal-stretch: 1;
+                }
+                SmallChip {
+                    text: "Select text";
+                    clicked => {
+                        Actions.select-message(root.message.id);
+                    }
+                }
+                if root.message.user: SmallChip {
+                    text: "Edit";
+                    clicked => {
+                        Actions.edit-message(root.message.id);
+                    }
+                }
+            }
+            for p in root.message.parts: PartBody {
+                p: p;
+            }
+            if root.message.error != "": Rectangle {
+                background: Theme.err-bg;
+                border-width: 1px;
+                border-color: Theme.err-border;
+                border-radius: 8px;
+                HorizontalLayout {
+                    padding: 10px;
+                    Text {
+                        text: root.message.error;
+                        font-size: 13px;
+                        color: Theme.err-text;
+                        wrap: char-wrap;
+                    }
+                }
+            }
+            if root.message.footer != "": Text {
+                text: root.message.footer;
+                font-size: 11px;
+                color: Theme.muted;
+            }
+        }
+    }
+}
