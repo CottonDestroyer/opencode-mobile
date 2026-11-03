@@ -1,0 +1,301 @@
+import { Theme, Icons } from "theme.slint";
+import { State, Actions, SessionRow } from "globals.slint";
+import { Icon, PressArea, Spin, Button, IconButton } from "components.slint";
+
+component GroupHeader inherits Rectangle {
+    in property <SessionRow> data;
+    height: 40px;
+    background: Theme.dark ? #111111 : #f5f5f5;
+    HorizontalLayout {
+        padding-left: 16px;
+        padding-right: 16px;
+        spacing: 8px;
+        Icon {
+            y: (parent.height - self.height) / 2;
+            source: Icons.folder-outline;
+            size: 16px;
+            color: Theme.dark ? #8b5cf6 : #6d28d9;
+        }
+        Text {
+            text: root.data.dir-short;
+            font-size: 14px;
+            font-weight: 600;
+            color: Theme.text;
+            vertical-alignment: center;
+            overflow: elide;
+            horizontal-stretch: 1;
+        }
+        Text {
+            text: root.data.count;
+            font-size: 12px;
+            color: Theme.muted;
+            vertical-alignment: center;
+        }
+        Icon {
+            y: (parent.height - self.height) / 2;
+            source: root.data.collapsed ? Icons.chevron-forward : Icons.chevron-down;
+            size: 16px;
+            color: Theme.muted;
+        }
+    }
+    Rectangle {
+        y: parent.height - 1px;
+        height: 1px;
+        background: Theme.border;
+    }
+    TouchArea {
+        mouse-cursor: pointer;
+        clicked => {
+            Actions.toggle-group(root.data.dir);
+        }
+    }
+}
+
+component SessionItem inherits Rectangle {
+    in property <SessionRow> data;
+    callback actions(string, string);
+    height: 72px;
+    background: pa.has-hover ? Theme.surface : transparent;
+    HorizontalLayout {
+        padding-left: 16px;
+        padding-right: 12px;
+        spacing: 8px;
+        VerticalLayout {
+            alignment: center;
+            spacing: 4px;
+            horizontal-stretch: 1;
+            HorizontalLayout {
+                spacing: 6px;
+                if root.data.busy: Spin {
+                    y: (parent.height - self.height) / 2;
+                    size: 12px;
+                }
+                Text {
+                    text: root.data.title;
+                    font-size: 16px;
+                    font-weight: 500;
+                    color: Theme.text;
+                    overflow: elide;
+                    horizontal-stretch: 1;
+                }
+            }
+            HorizontalLayout {
+                spacing: 8px;
+                Text {
+                    text: root.data.meta;
+                    font-size: 13px;
+                    color: Theme.text-2;
+                    vertical-alignment: center;
+                    horizontal-stretch: 1;
+                }
+                Rectangle {
+                    background: Theme.surface;
+                    border-radius: 4px;
+                    HorizontalLayout {
+                        padding-left: 6px;
+                        padding-right: 6px;
+                        padding-top: 2px;
+                        padding-bottom: 2px;
+                        spacing: 4px;
+                        Icon {
+                            y: (parent.height - self.height) / 2;
+                            source: Icons.folder-outline;
+                            size: 12px;
+                            color: Theme.text-2;
+                        }
+                        Text {
+                            text: root.data.dir-short;
+                            font-size: 11px;
+                            color: Theme.text-2;
+                            vertical-alignment: center;
+                            overflow: elide;
+                            max-width: 120px;
+                        }
+                    }
+                }
+            }
+        }
+        Icon {
+            y: (parent.height - self.height) / 2;
+            source: Icons.chevron-forward;
+            size: 20px;
+            color: Theme.muted;
+        }
+    }
+    Rectangle {
+        y: parent.height - 1px;
+        height: 1px;
+        background: Theme.border;
+    }
+    pa := PressArea {
+        mouse-cursor: pointer;
+        tapped => {
+            Actions.open-session(root.data.id);
+        }
+        long-pressed => {
+            root.actions(root.data.id, root.data.title);
+        }
+    }
+}
+
+export component SessionsScreen inherits Rectangle {
+    callback open-dir-sheet();
+    callback open-new-modal();
+    callback session-actions(string, string);
+    background: Theme.bg;
+
+    VerticalLayout {
+        // Project bar (the connection indicator in opencode-mobile): tap to switch project.
+        Rectangle {
+            height: 48px;
+            background: bar-ta.has-hover ? Theme.surface : transparent;
+            HorizontalLayout {
+                padding-left: 16px;
+                padding-right: 16px;
+                spacing: 8px;
+                Rectangle {
+                    y: (parent.height - self.height) / 2;
+                    width: 8px;
+                    height: 8px;
+                    border-radius: 4px;
+                    background: Theme.green;
+                }
+                Text {
+                    text: "This device";
+                    font-size: 15px;
+                    font-weight: 600;
+                    color: Theme.text;
+                    vertical-alignment: center;
+                }
+                Icon {
+                    y: (parent.height - self.height) / 2;
+                    source: Icons.folder;
+                    size: 14px;
+                    color: Theme.text-2;
+                }
+                Text {
+                    text: State.project-name;
+                    font-size: 14px;
+                    color: Theme.text-2;
+                    vertical-alignment: center;
+                    overflow: elide;
+                    horizontal-stretch: 1;
+                }
+                Icon {
+                    y: (parent.height - self.height) / 2;
+                    source: Icons.swap;
+                    size: 16px;
+                    color: Theme.muted;
+                }
+            }
+            Rectangle {
+                y: parent.height - 1px;
+                height: 1px;
+                background: Theme.border;
+            }
+            bar-ta := TouchArea {
+                mouse-cursor: pointer;
+                clicked => {
+                    root.open-dir-sheet();
+                }
+            }
+        }
+
+        Rectangle {
+            vertical-stretch: 1;
+            if State.session-rows.length > 0: Flickable {
+                content-height: list.preferred-height + 96px;
+                list := VerticalLayout {
+                    width: parent.width;
+                    alignment: start;
+                    for row in State.session-rows: VerticalLayout {
+                        if row.kind == 0: GroupHeader {
+                            data: row;
+                        }
+                        if row.kind == 1: SessionItem {
+                            data: row;
+                            actions(id, title) => {
+                                root.session-actions(id, title);
+                            }
+                        }
+                    }
+                }
+            }
+            if State.session-rows.length == 0: VerticalLayout {
+                alignment: center;
+                spacing: 12px;
+                padding: 32px;
+                HorizontalLayout {
+                    alignment: center;
+                    Icon {
+                        source: Icons.chats;
+                        size: 64px;
+                        color: Theme.faint;
+                    }
+                }
+                Text {
+                    text: "No sessions yet";
+                    font-size: 18px;
+                    font-weight: 600;
+                    color: Theme.text;
+                    horizontal-alignment: center;
+                }
+                Text {
+                    text: "The agent runs on this device using OpenCode Zen's free models. No server or account needed.";
+                    font-size: 14px;
+                    color: Theme.text-2;
+                    horizontal-alignment: center;
+                    wrap: word-wrap;
+                }
+                HorizontalLayout {
+                    alignment: center;
+                    Button {
+                        text: "Start a session";
+                        clicked => {
+                            Actions.new-session();
+                        }
+                    }
+                }
+                HorizontalLayout {
+                    alignment: center;
+                    Button {
+                        kind: 3;
+                        text: "Try a Demo";
+                        icon: Icons.play;
+                        has-icon: true;
+                        clicked => {
+                            Actions.start-demo();
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Tap starts a session in the current project; long press offers other directories.
+    fab := Rectangle {
+        x: root.width - self.width - 20px;
+        y: root.height - self.height - 20px;
+        width: 56px;
+        height: 56px;
+        border-radius: 28px;
+        background: Theme.primary;
+        drop-shadow-blur: 8px;
+        drop-shadow-offset-y: 2px;
+        drop-shadow-color: #00000040;
+        Icon {
+            source: Icons.add;
+            size: 28px;
+            color: Theme.on-primary;
+        }
+        PressArea {
+            mouse-cursor: pointer;
+            tapped => {
+                Actions.new-session();
+            }
+            long-pressed => {
+                root.open-new-modal();
+            }
+        }
+    }
+}

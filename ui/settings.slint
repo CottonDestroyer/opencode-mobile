@@ -1,0 +1,311 @@
+import { Theme, Icons } from "theme.slint";
+import { State, Actions } from "globals.slint";
+import { Icon, Toggle } from "components.slint";
+
+component Section inherits VerticalLayout {
+    in property <string> title;
+    spacing: 8px;
+    padding-left: 16px;
+    padding-right: 16px;
+    Text {
+        text: root.title;
+        font-size: 13px;
+        font-weight: 600;
+        color: Theme.text-2;
+        letter-spacing: 0.5px;
+    }
+    Rectangle {
+        background: Theme.dark ? #111111 : #ffffff;
+        border-radius: 12px;
+        border-width: 1px;
+        border-color: Theme.border;
+        clip: true;
+        VerticalLayout {
+            @children
+        }
+    }
+}
+
+component Row inherits Rectangle {
+    in property <image> icon;
+    in property <string> label;
+    in property <string> description;
+    in property <bool> clickable: false;
+    // 0 = none, 1 = chevron, 2 = external link, 3 = copy.
+    in property <int> accessory: 0;
+    callback clicked();
+    min-height: 60px;
+    background: clickable && ta.has-hover ? Theme.surface : transparent;
+    ta := TouchArea {
+        enabled: root.clickable;
+        mouse-cursor: root.clickable ? pointer : default;
+        clicked => {
+            root.clicked();
+        }
+    }
+    HorizontalLayout {
+        padding-left: 16px;
+        padding-right: 16px;
+        padding-top: 10px;
+        padding-bottom: 10px;
+        spacing: 12px;
+        Rectangle {
+            y: (parent.height - self.height) / 2;
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            background: Theme.surface;
+            Icon {
+                source: root.icon;
+                size: 18px;
+                color: Theme.text;
+            }
+        }
+        VerticalLayout {
+            alignment: center;
+            spacing: 2px;
+            horizontal-stretch: 1;
+            Text {
+                text: root.label;
+                font-size: 15px;
+                font-weight: 500;
+                color: Theme.text;
+            }
+            if root.description != "": Text {
+                text: root.description;
+                font-size: 12px;
+                color: Theme.text-2;
+                wrap: word-wrap;
+            }
+        }
+        HorizontalLayout {
+            horizontal-stretch: 0;
+            alignment: end;
+            @children
+            if root.accessory == 1: Icon {
+                y: (parent.height - self.height) / 2;
+                source: Icons.chevron-forward;
+                size: 20px;
+                color: Theme.muted;
+            }
+            if root.accessory == 2: Icon {
+                y: (parent.height - self.height) / 2;
+                source: Icons.open;
+                size: 20px;
+                color: Theme.muted;
+            }
+            if root.accessory == 3: Icon {
+                y: (parent.height - self.height) / 2;
+                source: Icons.copy;
+                size: 18px;
+                color: Theme.muted;
+            }
+        }
+    }
+    Rectangle {
+        y: parent.height - 1px;
+        height: 1px;
+        background: Theme.border;
+    }
+}
+
+component Segmented inherits Rectangle {
+    in-out property <int> value;
+    callback changed-value(int);
+    height: 30px;
+    width: 210px;
+    border-radius: 8px;
+    background: Theme.surface;
+    HorizontalLayout {
+        padding: 2px;
+        for label[i] in ["System", "Light", "Dark"]: Rectangle {
+            border-radius: 6px;
+            background: root.value == i ? Theme.bg : transparent;
+            drop-shadow-blur: root.value == i ? 2px : 0;
+            drop-shadow-color: #00000022;
+            Text {
+                text: label;
+                font-size: 12px;
+                font-weight: root.value == i ? 600 : 400;
+                color: root.value == i ? Theme.text : Theme.text-2;
+            }
+            TouchArea {
+                mouse-cursor: pointer;
+                clicked => {
+                    root.value = i;
+                    root.changed-value(i);
+                }
+            }
+        }
+    }
+}
+
+export component SettingsScreen inherits Rectangle {
+    background: Theme.dark ? #0a0a0a : #f5f5f5;
+    Flickable {
+        content-height: col.preferred-height;
+        col := VerticalLayout {
+            width: parent.width;
+            padding-top: 16px;
+            padding-bottom: 24px;
+            spacing: 24px;
+            alignment: start;
+
+            Section {
+                title: "SECURITY";
+                Row {
+                    icon: Icons.finger-print;
+                    label: "Require Biometric to Open";
+                    description: State.lock-status;
+                    Toggle {
+                        checked <=> State.lock-enabled;
+                        enabled: State.lock-available;
+                        toggled => {
+                            Actions.settings-changed();
+                        }
+                    }
+                }
+                Row {
+                    icon: Icons.lock;
+                    label: "Require Biometric to Send";
+                    description: "Authenticate before sending messages";
+                    Toggle {
+                        checked <=> State.lock-send;
+                        enabled: State.lock-available && State.lock-enabled;
+                        toggled => {
+                            Actions.settings-changed();
+                        }
+                    }
+                }
+                if State.lock-enabled: Row {
+                    icon: Icons.exit;
+                    label: "Lock now";
+                    description: "Lock the app immediately";
+                    clickable: true;
+                    accessory: 1;
+                    clicked => {
+                        Actions.lock-now();
+                    }
+                }
+            }
+
+            Section {
+                title: "NOTIFICATIONS";
+                Row {
+                    icon: Icons.check-circle;
+                    label: "Agent finished";
+                    description: "When a session finishes working in the background";
+                    Toggle {
+                        checked <=> State.notify-finished;
+                        toggled => {
+                            Actions.settings-changed();
+                        }
+                    }
+                }
+                Row {
+                    icon: Icons.shield;
+                    label: "Permission requests";
+                    description: "When the agent needs your approval";
+                    Toggle {
+                        checked <=> State.notify-permission;
+                        toggled => {
+                            Actions.settings-changed();
+                        }
+                    }
+                }
+                Row {
+                    icon: Icons.alert;
+                    label: "Errors";
+                    description: "When a session fails";
+                    Toggle {
+                        checked <=> State.notify-error;
+                        toggled => {
+                            Actions.settings-changed();
+                        }
+                    }
+                }
+            }
+
+            Section {
+                title: "APPEARANCE";
+                Row {
+                    icon: Icons.contrast;
+                    label: "Theme";
+                    Segmented {
+                        value <=> State.theme-pref;
+                        changed-value => {
+                            Theme.preference = State.theme-pref;
+                            Actions.settings-changed();
+                        }
+                    }
+                }
+                Row {
+                    icon: Icons.bulb;
+                    label: "Expand thinking";
+                    description: "Show reasoning blocks expanded by default";
+                    Toggle {
+                        checked <=> State.auto-expand-thinking;
+                        toggled => {
+                            Actions.settings-changed();
+                        }
+                    }
+                }
+            }
+
+            Section {
+                title: "ABOUT";
+                Row {
+                    icon: Icons.info;
+                    label: "Version";
+                    description: State.version;
+                }
+                Row {
+                    icon: Icons.folder-outline;
+                    label: "Data folder";
+                    description: State.data-dir;
+                    clickable: true;
+                    accessory: 3; // copies the path: the directory is app-private
+                    clicked => {
+                        Actions.open-data-dir();
+                    }
+                }
+                Row {
+                    icon: Icons.github;
+                    label: "GitHub";
+                    description: "View source code";
+                    clickable: true;
+                    accessory: 2;
+                    clicked => {
+                        Actions.open-url("https://github.com/CottonDestroyer/opencode-mobile");
+                    }
+                }
+                Row {
+                    icon: Icons.document;
+                    label: "Documentation";
+                    description: "Learn more about opencode";
+                    clickable: true;
+                    accessory: 2;
+                    clicked => {
+                        Actions.open-url("https://opencode.ai/docs");
+                    }
+                }
+            }
+
+            VerticalLayout {
+                spacing: 4px;
+                Text {
+                    text: "OpenCode Mobile";
+                    font-size: 12px;
+                    color: Theme.muted;
+                    horizontal-alignment: center;
+                }
+                Text {
+                    text: "AI coding agent, running on this device";
+                    font-size: 12px;
+                    color: Theme.muted;
+                    horizontal-alignment: center;
+                }
+            }
+        }
+    }
+}
