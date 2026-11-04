@@ -89,14 +89,15 @@ Set-Item "env:CARGO_TARGET_${T}_LINKER" $clang
 # wrapped to pin the ABI and API level.
 Set-Item "env:CMAKE_GENERATOR_$t" "Ninja"
 Set-Item "env:CMAKE_TOOLCHAIN_FILE_$t" ((Join-Path $PSScriptRoot "android.toolchain.cmake") -replace '\\', '/')
-# bindgen for btls-sys: use the NDK's own libclang unless LIBCLANG_PATH is set, since a different
-# LLVM version doesn't work with the NDK clang's builtin headers. Those headers (stddef.h and
-# friends) are passed explicitly because a standalone libclang lacks them, and the NDK headers
-# require a versioned target triple.
-if (-not $env:LIBCLANG_PATH) {
-    $env:LIBCLANG_PATH = @($bin, (Join-Path $llvm "lib"), (Join-Path $llvm "lib64")) |
-        Where-Object { Get-ChildItem $_ -Filter "libclang*" -File -ErrorAction SilentlyContinue } | Select-Object -First 1
-}
+# bindgen for btls-sys: use the NDK's own libclang, even over a LIBCLANG_PATH set for host builds.
+# Another LLVM brings its own builtin headers, and two copies of stdint.h on the include path hide
+# the sysroot's (its include guard makes the second copy a no-op), so uint32_t and friends go
+# missing. The builtin headers are also passed explicitly, for a libclang without them, and the NDK
+# headers require a versioned target triple.
+$ndkLibclang = @($bin, (Join-Path $llvm "lib"), (Join-Path $llvm "lib64")) |
+    Where-Object { Get-ChildItem $_ -Filter "libclang*" -File -ErrorAction SilentlyContinue } | Select-Object -First 1
+if ($ndkLibclang) { $env:LIBCLANG_PATH = $ndkLibclang }
+Write-Host "LIBCLANG_PATH=$env:LIBCLANG_PATH"
 $clangInc = (Get-ChildItem (Join-Path $llvm "lib/clang") -Directory | Select-Object -First 1).FullName
 $clangInc = (Join-Path $clangInc "include") -replace '\\', '/'
 $sysroot = (Join-Path $llvm "sysroot") -replace '\\', '/'
