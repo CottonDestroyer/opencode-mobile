@@ -1712,7 +1712,8 @@ impl Ctl {
 
     fn update_catalog_rows(&mut self) {
         let Some(app) = self.any_app() else { return };
-        let mut ps: Vec<_> = app.providers().into_values().collect();
+        let providers = app.providers();
+        let mut ps: Vec<_> = providers.values().collect();
         ps.sort_by_key(|p| p.name.to_lowercase());
         let q = self.catalog_query.as_str();
         let rows: Vec<PickerRow> = ps

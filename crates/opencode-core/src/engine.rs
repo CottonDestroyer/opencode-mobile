@@ -620,8 +620,7 @@ pub async fn generate_title(app: &Arc<App>, handle: &Arc<Handle>) -> Result<()> 
     let agent = app.agent("title")?.clone();
     let main = handle.with(|s| s.model.clone()).ok_or_else(|| anyhow!("no model"))?;
     let provider_id = main.split('/').next().unwrap_or("").to_string();
-    let providers = app.providers();
-    let small = crate::models::small_model(&app.config, &providers, &provider_id).unwrap_or(main);
+    let small = crate::models::small_model(&app.config, &app.providers(), &provider_id).unwrap_or(main);
     let sel = select_model(app, &agent, &PromptOptions { model: Some(small), ..Default::default() }, None)?;
     let sel = Selection { variant: if sel.model.has_reasoning_type("toggle") { Some("off".into()) } else { Some("low".into()).filter(|v| sel.model.variants().contains(v)) }, ..sel };
     let input = format!("Here is the first message of the conversation:\n\n<message>\n{first}\n</message>\n\nReply with only the title.");

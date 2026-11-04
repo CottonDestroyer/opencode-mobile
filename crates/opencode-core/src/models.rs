@@ -3,9 +3,11 @@
 
 use crate::config::{Config, ProviderOptions};
 use anyhow::{anyhow, Result};
+use serde::Deserialize;
 use serde_json::Value;
 use std::collections::BTreeMap;
-use std::io::Read;
+use std::io::BufReader;
+use std::sync::LazyLock;
 
 static SNAPSHOT: &[u8] = include_bytes!("../assets/models.json.gz");
 const MODELS_URL: &str = "https://models.dev/api.json";
@@ -139,8 +141,8 @@ impl Provider {
             .or_else(|| self.api.clone())
             .or_else(|| default_base_url(model.npm.as_deref().unwrap_or(&self.npm)).map(String::from))?;
         // Expand the `${ENV}` placeholders the catalog uses.
-        let re = regex::Regex::new(r"\$\{([A-Z0-9_]+)\}").unwrap();
-        Some(re.replace_all(&url, |c: &regex::Captures| std::env::var(&c[1]).unwrap_or_default()).trim_end_matches('/').to_string())
+        static RE: LazyLock<regex::Regex> = LazyLock::new(|| regex::Regex::new(r"\$\{([A-Z0-9_]+)\}").unwrap());
+        Some(RE.replace_all(&url, |c: &regex::Captures| std::env::var(&c[1]).unwrap_or_default()).trim_end_matches('/').to_string())
     }
 }
 
@@ -163,24 +165,54 @@ fn default_base_url(npm: &str) -> Option<&'static str> {
     })
 }
 
-/// The raw models.dev catalog: the cached copy if present, otherwise the embedded snapshot.
-pub fn catalog() -> Value {
-    let cache = crate::paths::get().models_cache();
-    if let Ok(text) = std::fs::read_to_string(&cache) {
-        if let Ok(v) = serde_json::from_str::<Value>(&text) {
-            if v.is_object() {
-                return v;
+/// A models.dev catalog entry with its chat models already parsed. The catalog is streamed: each
+/// model's JSON is dropped as soon as it's parsed, so the whole catalog (several MB of JSON, many
+/// times that as a `Value` tree) is never held at once.
+#[derive(Default, Deserialize)]
+#[serde(default)]
+struct CatalogProvider {
+    name: Option<Value>,
+    npm: Option<Value>,
+    api: Option<Value>,
+    env: Option<Value>,
+    models: ChatModels,
+}
+
+/// A catalog provider's chat models, keyed by catalog id, with `provider_id` left empty.
+#[derive(Default)]
+struct ChatModels(BTreeMap<String, Model>);
+
+impl<'de> Deserialize<'de> for ChatModels {
+    fn deserialize<D: serde::Deserializer<'de>>(d: D) -> std::result::Result<Self, D::Error> {
+        struct Visitor;
+        impl<'de> serde::de::Visitor<'de> for Visitor {
+            type Value = ChatModels;
+            fn expecting(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+                f.write_str("a map of models")
+            }
+            fn visit_map<A: serde::de::MapAccess<'de>>(self, mut map: A) -> std::result::Result<ChatModels, A::Error> {
+                let mut out = BTreeMap::new();
+                while let Some((id, v)) = map.next_entry::<String, Value>()? {
+                    if is_chat_model(&v) {
+                        let m = parse_model("", &id, &v);
+                        out.insert(id, m);
+                    }
+                }
+                Ok(ChatModels(out))
             }
         }
+        d.deserialize_map(Visitor)
     }
-    let mut gz = flate2::read::GzDecoder::new(SNAPSHOT);
-    let mut s = String::new();
-    if gz.read_to_string(&mut s).is_ok() {
-        if let Ok(v) = serde_json::from_str(&s) {
-            return v;
+}
+
+/// The models.dev catalog: the cached copy if it parses, otherwise the embedded snapshot.
+fn catalog() -> BTreeMap<String, CatalogProvider> {
+    if let Ok(f) = std::fs::File::open(crate::paths::get().models_cache()) {
+        if let Ok(c) = serde_json::from_reader(BufReader::new(f)) {
+            return c;
         }
     }
-    Value::Object(Default::default())
+    serde_json::from_reader(BufReader::new(flate2::read::GzDecoder::new(SNAPSHOT))).unwrap_or_default()
 }
 
 /// Refreshes the cached catalog from models.dev.
@@ -191,8 +223,8 @@ pub async fn refresh() -> Result<()> {
     let url = std::env::var("OPENCODE_MODELS_URL").unwrap_or_else(|_| MODELS_URL.into());
     let req = crate::http::client().get(url).header("User-Agent", crate::user_agent()).timeout(std::time::Duration::from_secs(10));
     let text = crate::http::send(req).await?.error_for_status()?.text().await?;
-    let v: Value = serde_json::from_str(&text)?;
-    if !v.is_object() {
+    // Only check that it's a JSON object; catalog() does the real parsing when it's next read.
+    if serde_json::from_str::<BTreeMap<String, serde::de::IgnoredAny>>(&text).is_err() {
         return Err(anyhow!("unexpected models.dev payload"));
     }
     let path = crate::paths::get().models_cache();
@@ -258,11 +290,11 @@ fn is_chat_model(v: &Value) -> bool {
 
 /// Builds the provider registry from the catalog, stored credentials and config.
 pub fn providers(config: &Config) -> BTreeMap<String, Provider> {
-    let catalog = catalog();
+    let mut catalog = catalog();
     let creds = crate::auth::all();
     let mut out = BTreeMap::new();
 
-    let mut ids: Vec<String> = catalog.as_object().map(|m| m.keys().cloned().collect()).unwrap_or_default();
+    let mut ids: Vec<String> = catalog.keys().cloned().collect();
     for id in config.provider.keys() {
         if !ids.contains(id) {
             ids.push(id.clone());
@@ -278,31 +310,28 @@ pub fn providers(config: &Config) -> BTreeMap<String, Provider> {
                 continue;
             }
         }
-        let cat = catalog.get(&id);
+        let cat = catalog.remove(&id);
         let cfg = config.provider.get(&id);
         if cat.is_none() && cfg.is_none() {
             continue;
         }
-        let cs = |k: &str| cat.and_then(|c| c.get(k)).and_then(|x| x.as_str()).map(String::from);
-        let mut models = BTreeMap::new();
-        if let Some(Value::Object(ms)) = cat.and_then(|c| c.get("models")) {
-            for (mid, mv) in ms {
-                if !is_chat_model(mv) {
-                    continue;
-                }
-                models.insert(mid.clone(), parse_model(&id, mid, mv));
-            }
+        let cat = cat.unwrap_or_default();
+        let cs = |v: &Option<Value>| v.as_ref().and_then(|x| x.as_str()).map(String::from);
+        let mut models = cat.models.0;
+        for m in models.values_mut() {
+            m.provider_id = id.clone();
         }
         let mut env: Vec<String> = cat
-            .and_then(|c| c.get("env"))
+            .env
+            .as_ref()
             .and_then(|e| e.as_array())
             .map(|a| a.iter().filter_map(|x| x.as_str().map(String::from)).collect())
             .unwrap_or_default();
         let mut provider = Provider {
             id: id.clone(),
-            name: cs("name").unwrap_or_else(|| id.clone()),
-            npm: cs("npm").unwrap_or_else(|| "@ai-sdk/openai-compatible".into()),
-            api: cs("api"),
+            name: cs(&cat.name).unwrap_or_else(|| id.clone()),
+            npm: cs(&cat.npm).unwrap_or_else(|| "@ai-sdk/openai-compatible".into()),
+            api: cs(&cat.api),
             env: vec![],
             key: None,
             options: ProviderOptions::default(),
@@ -357,6 +386,12 @@ pub fn providers(config: &Config) -> BTreeMap<String, Provider> {
         if provider.models.is_empty() {
             continue;
         }
+        // Only usable providers (see `available`) keep their models; the rest stay listed by name for
+        // connecting one, and adding a key rebuilds the registry. Most of the catalog's thousands of
+        // models belong to providers without a key.
+        if provider.key.is_none() && cfg.is_none() {
+            provider.models.clear();
+        }
         out.insert(id, provider);
     }
     out
@@ -402,6 +437,9 @@ pub struct Resolved {
 pub fn resolve(all: &BTreeMap<String, Provider>, reference: &str) -> Result<Resolved> {
     let (pid, mid, variant) = parse_ref(reference).ok_or_else(|| anyhow!("model must be in the form provider/model, got {reference}"))?;
     let provider = all.get(&pid).ok_or_else(|| anyhow!("provider not found: {pid}"))?;
+    if provider.models.is_empty() {
+        return Err(anyhow!("provider {pid} is not connected: add an API key for it"));
+    }
     let model = provider
         .models
         .get(&mid)
@@ -415,7 +453,18 @@ pub fn resolve(all: &BTreeMap<String, Provider>, reference: &str) -> Result<Reso
                 anyhow!("model not found: {pid}/{mid}. Did you mean: {}", suggestions.join(", "))
             }
         })?;
-    Ok(Resolved { provider: provider.clone(), model, variant })
+    // Callers only need the provider's settings, so leave out its (possibly hundreds of) models.
+    let provider = Provider {
+        id: provider.id.clone(),
+        name: provider.name.clone(),
+        npm: provider.npm.clone(),
+        api: provider.api.clone(),
+        env: provider.env.clone(),
+        key: provider.key.clone(),
+        options: provider.options.clone(),
+        models: BTreeMap::new(),
+    };
+    Ok(Resolved { provider, model, variant })
 }
 
 const FREE_ORDER: [&str; 4] = ["big-pickle", "deepseek-v4.1-flash-free", "glm-5.3-flash-free", "muse-spark-1.3-contributor-free"];

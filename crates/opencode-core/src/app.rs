@@ -164,8 +164,10 @@ impl App {
         self.events.subscribe()
     }
 
-    pub fn providers(&self) -> BTreeMap<String, Provider> {
-        self.providers.read().unwrap().clone()
+    /// The provider registry, borrowed rather than copied (it can hold thousands of models). Don't
+    /// hold the guard across anything that may rebuild the registry.
+    pub fn providers(&self) -> std::sync::RwLockReadGuard<'_, BTreeMap<String, Provider>> {
+        self.providers.read().unwrap()
     }
 
     pub fn agent(&self, id: &str) -> Result<&Agent> {
