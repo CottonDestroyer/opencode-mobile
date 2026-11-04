@@ -59,7 +59,6 @@ jobs:
       - name: Build signed APK
         env:
           CARGO_APK_RELEASE_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          LIBCLANG_PATH: C:\Program Files\LLVM\bin
         run: ./scripts/build-android.ps1 -Release -Ndk (Join-Path $env:ANDROID_HOME "ndk\$env:NDK_VERSION") -Cargo "apk build --lib"
 
       - uses: actions/upload-artifact@v4
