@@ -97,7 +97,11 @@ Set-Item "env:CMAKE_TOOLCHAIN_FILE_$t" ((Join-Path $PSScriptRoot "android.toolch
 $ndkLibclang = @($bin, (Join-Path $llvm "lib"), (Join-Path $llvm "lib64")) |
     Where-Object { Get-ChildItem $_ -Filter "libclang*" -File -ErrorAction SilentlyContinue } | Select-Object -First 1
 if ($ndkLibclang) { $env:LIBCLANG_PATH = $ndkLibclang }
+# bindgen also runs a clang executable (CLANG_PATH, else llvm-config, else PATH) and adds its include
+# dirs, so pin that to the NDK's clang too, or an LLVM install on PATH brings its builtin headers.
+$env:CLANG_PATH = Join-Path $bin "clang$exe"
 Write-Host "LIBCLANG_PATH=$env:LIBCLANG_PATH"
+Write-Host "CLANG_PATH=$env:CLANG_PATH"
 $clangInc = (Get-ChildItem (Join-Path $llvm "lib/clang") -Directory | Select-Object -First 1).FullName
 $clangInc = (Join-Path $clangInc "include") -replace '\\', '/'
 $sysroot = (Join-Path $llvm "sysroot") -replace '\\', '/'
