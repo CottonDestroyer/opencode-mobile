@@ -1,0 +1,10 @@
+# Copy to .cargo/config.toml (untracked) only if the tools below aren't found on their own.
+#
+# BoringSSL (wreq -> btls-sys) builds from source: it needs CMake, bindgen needs libclang, and the host
+# build used by `cargo test` also needs NASM on Windows. If they're on PATH (or LIBCLANG_PATH is set in
+# your environment) you don't need this file. `.tools/` is gitignored for local copies.
+# Android-specific settings are in scripts/build-android.ps1.
+[env]
+# LIBCLANG_PATH = { value = ".tools/libclang", relative = true }
+# CMAKE = "C:/Program Files/CMake/bin/cmake.exe"
+# ASM_NASM = { value = ".tools/nasm/nasm.exe", relative = true }

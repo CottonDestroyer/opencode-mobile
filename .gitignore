@@ -4,8 +4,10 @@
 # Local copy of the original React Native app, kept for reference only
 /opencode-mobile
 
-# Host build tools for BoringSSL (libclang, NASM); see .cargo/config.toml
+# Host build tools for BoringSSL (libclang, NASM) and the cargo config pointing at them; see
+# .cargo/config.example.toml
 /.tools
+/.cargo/config.toml
 
 # Local indexes and editor state
 /.codegraph

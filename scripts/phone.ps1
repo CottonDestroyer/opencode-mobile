@@ -1,18 +1,25 @@
 # Drives the app on a connected device over adb (USB or wireless debugging).
 #   .\scripts\phone.ps1 install              # install the debug APK and launch it
 #   .\scripts\phone.ps1 launch               # restart the app
-#   .\scripts\phone.ps1 shot -Out x.png      # screenshot, plus a third-scale x-small.png
+#   .\scripts\phone.ps1 shot -Out x.png      # screenshot, plus a third-scale x-small.png (Windows)
 #   .\scripts\phone.ps1 tap -X 630 -Y 1400   # tap at device pixels
 #   .\scripts\phone.ps1 text -Text 'hello'   # type into the focused field
 #   .\scripts\phone.ps1 log                  # the app's logcat output since launch
 param(
     [Parameter(Mandatory)][ValidateSet("install", "launch", "shot", "tap", "text", "log")][string]$Cmd,
-    [string]$Out = "target\phone.png",
+    [string]$Out = "target/phone.png",
     [int]$X, [int]$Y,
     [string]$Text,
-    [string]$Apk = "target\debug\apk\opencode-mobile.apk"
+    [string]$Apk = "target/debug/apk/opencode-mobile.apk"
 )
-$adb = "$env:LOCALAPPDATA\Android\Sdk\platform-tools\adb.exe"
+# adb from PATH, else the SDK's platform-tools (ANDROID_HOME, else Android Studio's default on Windows).
+$sdk = if ($env:ANDROID_HOME) { $env:ANDROID_HOME } elseif ($env:LOCALAPPDATA) { Join-Path $env:LOCALAPPDATA "Android\Sdk" }
+$adb = (Get-Command adb -ErrorAction SilentlyContinue | Select-Object -First 1).Source
+if (-not $adb -and $sdk) {
+    $adb = Get-ChildItem (Join-Path $sdk "platform-tools") -Filter "adb*" -ErrorAction SilentlyContinue |
+        Where-Object { $_.BaseName -eq "adb" } | Select-Object -First 1 -ExpandProperty FullName
+}
+if (-not $adb) { throw "adb not found: add platform-tools to PATH or set ANDROID_HOME" }
 $pkg = "dev.opencodemobile.app"
 $ErrorActionPreference = "Continue"
 function Launch {
