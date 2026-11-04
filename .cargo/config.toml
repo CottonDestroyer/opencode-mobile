@@ -1,8 +1,0 @@
-# BoringSSL (wreq -> btls-sys) builds from source: bindgen needs libclang, the build needs CMake, and
-# the host build used by `cargo test --lib` also needs NASM. `.tools/` (untracked) holds libclang and
-# NASM; change these paths if your installs live elsewhere. Android-specific settings are in
-# scripts/build-android.ps1.
-[env]
-LIBCLANG_PATH = { value = ".tools/libclang", relative = true }
-CMAKE = "C:/Program Files/Microsoft Visual Studio/18/Professional/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/bin/cmake.exe"
-ASM_NASM = { value = ".tools/nasm/nasm.exe", relative = true }
